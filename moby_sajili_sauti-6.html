@@ -1,0 +1,1264 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Moby — Sajili Alama kwa Sauti</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --green:#0fae72;
+    --green-dark:#0a7d53;
+    --green-deep:#063d2b;
+    --green-light:#e5f9f1;
+    --ink:#0d211c;
+    --ink-soft:#5c6f6a;
+    --paper:#f6faf8;
+    --card:#ffffff;
+    --line:#e0ebe6;
+    --danger:#e0524a;
+    --amber:#c98a1c;
+    --shadow: 0 10px 30px rgba(6,61,43,.08);
+    --radius: 20px;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 90% -10%, rgba(15,174,114,0.08), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, rgba(15,174,114,0.06), transparent 60%),
+      var(--paper);
+    font-family:'Inter', sans-serif;
+    color:var(--ink);
+    min-height:100%;
+    overflow-x:hidden;
+  }
+  h1,h2,h3,h4{ font-family:'Sora', sans-serif; margin:0; }
+  button{ font-family:inherit; }
+  .screen{ display:none; min-height:100vh; flex-direction:column; }
+  .screen.active{ display:flex; }
+
+  /* ---------- shared bits ---------- */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:18px 20px; position:sticky; top:0; z-index:20;
+    background:rgba(246,250,248,0.85); backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);
+  }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand .dot{
+    width:12px; height:12px; border-radius:50%; background:var(--green);
+    box-shadow:0 0 0 4px var(--green-light);
+  }
+  .brand span{ font-family:'Sora', sans-serif; font-weight:700; font-size:1rem; letter-spacing:.01em; }
+  .brand small{ display:block; font-size:.68rem; color:var(--ink-soft); font-weight:500; margin-top:1px; }
+
+  .wrap{ max-width:640px; margin:0 auto; padding:26px 20px 60px; width:100%; flex:1; display:flex; flex-direction:column; }
+
+  .pill{
+    display:inline-flex; align-items:center; gap:6px;
+    background:var(--green-light); color:var(--green-dark);
+    padding:5px 12px; border-radius:99px; font-size:.72rem; font-weight:700;
+    letter-spacing:.03em; text-transform:uppercase; align-self:flex-start;
+  }
+
+  .btn{
+    border:none; border-radius:14px; padding:15px 20px; font-weight:700;
+    font-size:.94rem; cursor:pointer; display:inline-flex; align-items:center;
+    justify-content:center; gap:8px; transition:.15s transform, .15s box-shadow, .15s background;
+  }
+  .btn:active{ transform:scale(.98); }
+  .btn-main{ background:var(--green); color:#fff; width:100%; box-shadow:0 10px 24px rgba(15,174,114,.32); }
+  .btn-main:hover{ background:var(--green-dark); }
+  .btn-main:disabled{ background:#b9c9c3; box-shadow:none; cursor:not-allowed; }
+  .btn-ghost{ background:#fff; color:var(--ink); border:1.5px solid var(--line); }
+  .btn-ghost:hover{ border-color:#c7d6d0; }
+  .btn-danger-ghost{ background:#fff; color:var(--danger); border:1.5px solid #f3d3d1; }
+  .btn-danger-ghost:hover{ background:#fdf3f2; }
+
+  /* ================= SCREEN 1 — USAJILI ================= */
+  .reg-hero{
+    background:linear-gradient(160deg, var(--green-deep), var(--green-dark) 65%, var(--green));
+    border-radius:24px; padding:28px 24px; color:#fff; margin-bottom:22px;
+    position:relative; overflow:hidden;
+  }
+  .reg-hero::after{
+    content:''; position:absolute; right:-40px; top:-40px; width:180px; height:180px;
+    border-radius:50%; background:rgba(255,255,255,.08);
+  }
+  .reg-hero h1{ font-size:1.5rem; font-weight:800; line-height:1.25; margin-bottom:8px; position:relative; }
+  .reg-hero p{ font-size:.86rem; opacity:.88; line-height:1.55; margin:0; max-width:46ch; position:relative; }
+
+  .field-card{
+    background:var(--card); border-radius:var(--radius); padding:22px;
+    box-shadow:var(--shadow); border:1px solid var(--line); margin-bottom:16px;
+  }
+  .field-card label{
+    display:flex; align-items:center; justify-content:space-between;
+    font-size:.8rem; font-weight:700; color:var(--ink-soft); margin-bottom:10px;
+  }
+  .field-card label .count{
+    background:var(--green-light); color:var(--green-dark); padding:2px 9px;
+    border-radius:99px; font-size:.72rem; font-weight:800;
+  }
+  textarea#namesInput{
+    width:100%; min-height:230px; resize:vertical; border:1.5px solid var(--line);
+    border-radius:14px; padding:14px; font-size:.95rem; font-family:'Inter',sans-serif;
+    line-height:1.7; color:var(--ink); background:#fbfdfc; outline:none;
+  }
+  textarea#namesInput:focus{ border-color:var(--green); background:#fff; }
+  .hint-row{ display:flex; gap:8px; align-items:flex-start; margin-top:10px; font-size:.76rem; color:var(--ink-soft); }
+  .hint-row svg{ flex-shrink:0; margin-top:1px; }
+
+  /* saving overlay */
+  #savingOverlay{
+    position:fixed; inset:0; background:var(--green-deep); z-index:100;
+    display:none; align-items:center; justify-content:center; flex-direction:column; gap:18px;
+  }
+  #savingOverlay.show{ display:flex; }
+  .save-rings{ position:relative; width:70px; height:70px; }
+  .save-rings span{
+    position:absolute; inset:0; border-radius:50%; border:3px solid rgba(255,255,255,.18);
+    border-top-color:#fff; animation:spin 1s linear infinite;
+  }
+  .save-rings span:nth-child(2){ inset:12px; animation-duration:.7s; border-top-color:rgba(255,255,255,.7); }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  #savingOverlay .save-text{ color:#fff; font-family:'Sora',sans-serif; font-weight:700; font-size:1rem; letter-spacing:.02em; }
+  #savingOverlay .save-sub{ color:rgba(255,255,255,.65); font-size:.78rem; }
+
+  /* ================= SCREEN 2 — SAUTI ================= */
+  .progress-track{
+    height:6px; background:var(--line); border-radius:99px; overflow:hidden; margin-top:14px;
+  }
+  .progress-fill{ height:100%; background:var(--green); border-radius:99px; transition:width .35s ease; width:0%; }
+  .progress-label{ display:flex; justify-content:space-between; font-size:.72rem; color:var(--ink-soft); margin-top:6px; font-weight:600; }
+
+  .student-banner{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:20px 22px; margin:20px 0 22px; box-shadow:var(--shadow);
+    display:flex; align-items:center; justify-content:space-between; gap:14px;
+  }
+  .student-banner .label{ font-size:.7rem; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft); font-weight:700; margin-bottom:4px; }
+  .student-banner h2{ font-size:1.28rem; font-weight:800; }
+  .student-avatar{
+    width:46px; height:46px; border-radius:14px; background:var(--green-light);
+    color:var(--green-dark); display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:1.05rem; flex-shrink:0; font-family:'Sora',sans-serif;
+  }
+
+  .mic-stage{ display:flex; flex-direction:column; align-items:center; padding:6px 0 26px; }
+  .mic-ring-wrap{ position:relative; width:150px; height:150px; display:flex; align-items:center; justify-content:center; margin-bottom:18px; }
+  .mic-ring-wrap .ripple{
+    position:absolute; inset:0; border-radius:50%; border:2px solid var(--green);
+    opacity:0; 
+  }
+  .mic-ring-wrap.rec .ripple{ animation:ripple 1.8s ease-out infinite; }
+  .mic-ring-wrap.rec .ripple:nth-child(2){ animation-delay:.6s; }
+  .mic-ring-wrap.rec .ripple:nth-child(3){ animation-delay:1.2s; }
+  @keyframes ripple{ 0%{ transform:scale(.7); opacity:.55; } 100%{ transform:scale(1.55); opacity:0; } }
+
+  #micBtn{
+    width:104px; height:104px; border-radius:50%; border:none; cursor:pointer;
+    background:linear-gradient(160deg, var(--green), var(--green-dark));
+    color:#fff; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 14px 30px rgba(15,174,114,.4); position:relative; z-index:2;
+    transition:.2s transform;
+  }
+  #micBtn:active{ transform:scale(.95); }
+  #micBtn.rec{ background:linear-gradient(160deg, var(--danger), #b7392f); box-shadow:0 14px 30px rgba(224,82,74,.4); }
+  #micBtn svg{ width:38px; height:38px; }
+
+  .mic-status{ font-family:'Sora',sans-serif; font-weight:700; font-size:.95rem; color:var(--ink); margin-bottom:4px; }
+  .mic-substatus{ font-size:.78rem; color:var(--ink-soft); text-align:center; max-width:34ch; }
+
+  .transcript-box{
+    background:var(--card); border:1.5px dashed #c9dcd4; border-radius:18px;
+    padding:18px; min-height:110px; margin-top:22px; position:relative;
+  }
+  .transcript-box .tb-label{
+    position:absolute; top:-10px; left:14px; background:var(--paper); padding:0 8px;
+    font-size:.68rem; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft);
+  }
+  .transcript-box p{ margin:0; font-size:1rem; line-height:1.65; color:var(--ink); }
+  .transcript-box p.placeholder{ color:#a9bab4; font-style:italic; }
+  .transcript-box .interim{ color:#7c8b89; }
+
+  .example-tip{
+    display:flex; align-items:center; gap:8px; margin-top:14px; font-size:.76rem;
+    color:var(--ink-soft); background:var(--green-light); padding:10px 12px; border-radius:12px;
+  }
+  .example-tip code{ background:#fff; padding:2px 6px; border-radius:6px; font-weight:700; color:var(--green-dark); }
+
+  /* ---------- confirm modal ---------- */
+  .modal-backdrop{
+    position:fixed; inset:0; background:rgba(6,20,17,.55); backdrop-filter:blur(3px);
+    display:none; align-items:flex-end; justify-content:center; z-index:90;
+  }
+  .modal-backdrop.open{ display:flex; }
+  @media(min-width:640px){ .modal-backdrop{ align-items:center; } }
+
+  .modal-sheet{
+    background:#fff; width:100%; max-width:480px; border-radius:24px 24px 0 0;
+    padding:26px 22px 22px; box-shadow:0 -10px 40px rgba(0,0,0,.2);
+    animation:slideUp .28s cubic-bezier(.2,.8,.2,1);
+    max-height:88vh; overflow-y:auto;
+  }
+  @media(min-width:640px){ .modal-sheet{ border-radius:24px; animation:popIn .22s ease; } }
+  @keyframes slideUp{ from{ transform:translateY(30px); opacity:0; } to{ transform:translateY(0); opacity:1; } }
+  @keyframes popIn{ from{ transform:scale(.94); opacity:0; } to{ transform:scale(1); opacity:1; } }
+
+  .modal-handle{ width:38px; height:4px; background:var(--line); border-radius:99px; margin:0 auto 16px; }
+  @media(min-width:640px){ .modal-handle{ display:none; } }
+
+  .modal-check{
+    width:52px; height:52px; border-radius:50%; background:var(--green-light);
+    color:var(--green-dark); display:flex; align-items:center; justify-content:center; margin-bottom:14px;
+  }
+  .modal-sheet h3{ font-size:1.08rem; font-weight:800; margin-bottom:2px; }
+  .modal-sheet .modal-sub{ font-size:.8rem; color:var(--ink-soft); margin-bottom:16px; }
+
+  .confirm-name{
+    background:var(--green-light); border-radius:14px; padding:14px 16px; margin-bottom:14px;
+    display:flex; align-items:center; gap:12px;
+  }
+  .confirm-name .student-avatar{ background:#fff; }
+  .confirm-name .cn-text{ flex:1; }
+  .confirm-name .cn-label{ font-size:.68rem; color:var(--green-dark); font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+  .confirm-name .cn-name{ font-family:'Sora',sans-serif; font-weight:800; font-size:1.08rem; color:var(--ink); }
+
+  .score-list{ display:flex; flex-direction:column; gap:8px; margin-bottom:8px; }
+  .score-row{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    border:1.5px solid var(--line); border-radius:12px; padding:10px 12px; background:#fbfdfc;
+  }
+  .score-row .subj{ font-weight:700; font-size:.85rem; color:var(--ink); flex:1; }
+  .score-row .subj[contenteditable]:focus, .score-row .val[contenteditable]:focus{ outline:2px solid var(--green); border-radius:6px; }
+  .score-row .val{
+    font-family:'Sora',sans-serif; font-weight:800; font-size:.95rem; color:var(--green-dark);
+    background:var(--green-light); padding:4px 12px; border-radius:8px; min-width:42px; text-align:center;
+  }
+  .score-row .rm{ border:none; background:none; color:var(--danger); font-size:1.1rem; cursor:pointer; opacity:.55; line-height:1; padding:2px; }
+  .score-row .rm:hover{ opacity:1; }
+
+  .no-scores{
+    text-align:center; padding:18px 10px; color:var(--amber); font-size:.82rem; font-weight:600;
+    background:#fdf6e8; border-radius:12px; margin-bottom:12px;
+  }
+
+  .raw-transcript{ font-size:.72rem; color:#a9bab4; margin:10px 0 18px; line-height:1.5; }
+  .raw-transcript b{ color:var(--ink-soft); }
+
+  .modal-actions{ display:flex; gap:10px; }
+  .modal-actions .btn{ flex:1; }
+
+  /* ---------- completion screen ---------- */
+  .done-hero{ text-align:center; padding:30px 10px 6px; }
+  .done-check{
+    width:76px; height:76px; border-radius:50%; background:var(--green-light); color:var(--green-dark);
+    display:flex; align-items:center; justify-content:center; margin:0 auto 16px;
+  }
+  .done-hero h2{ font-size:1.35rem; margin-bottom:6px; }
+  .done-hero p{ color:var(--ink-soft); font-size:.86rem; }
+
+  .review-table{ width:100%; border-collapse:collapse; margin:20px 0; font-size:.82rem; }
+  .review-table th, .review-table td{ border:1px solid var(--line); padding:9px 8px; text-align:center; }
+  .review-table th{ background:var(--green-light); color:var(--green-dark); font-weight:800; font-size:.72rem; text-transform:uppercase; }
+  .review-table td:first-child, .review-table th:first-child{ text-align:left; }
+
+  .empty-note{ text-align:center; color:var(--ink-soft); font-size:.8rem; padding:20px; }
+
+  .footer-actions{ display:flex; gap:10px; margin-top:8px; flex-wrap:wrap; }
+  .footer-actions .btn{ flex:1; min-width:110px; }
+
+  /* toast */
+  #toast{
+    position:fixed; left:50%; bottom:26px; transform:translateX(-50%) translateY(20px);
+    background:var(--ink); color:#fff; padding:11px 18px; border-radius:12px; font-size:.82rem;
+    font-weight:600; opacity:0; pointer-events:none; transition:.25s; z-index:110; white-space:nowrap;
+  }
+  #toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  .icon-btn{
+    width:38px; height:38px; border-radius:12px; border:1px solid var(--line); background:#fff;
+    display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--ink-soft);
+    flex-shrink:0;
+  }
+  .icon-btn:hover{ border-color:#c7d6d0; color:var(--ink); }
+</style>
+</head>
+<body>
+
+<!-- ============ SCREEN 1: USAJILI ============ -->
+<section id="screenReg" class="screen active">
+  <div class="topbar">
+    <div class="brand">
+      <span class="dot"></span>
+      <div><span>Moby</span><small>Sajili Alama kwa Sauti</small></div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="reg-hero">
+      <h1>Anza kwa kubandika<br>majina na jinsia</h1>
+      <p>Hakuna sauti hapa — bandika (paste) tu orodha ya majina pamoja na jinsia. Baada ya hapo utaongeza masomo (columns), kisha utaongea alama za kila mwanafunzi kwa sauti.</p>
+    </div>
+
+    <div class="field-card">
+      <label>Jina na Jinsia (moja kwa kila mstari) <span class="count" id="nameCount">0</span></label>
+      <textarea id="namesInput" placeholder="Bandika: JINA  [Tab au nafasi]  JINSIA (hiari)&#10;Jinsia: 1 / kiume / me  kwa mvulana,  2 / kike / ke kwa msichana&#10;&#10;Mfano:&#10;JOHN BITON MWAMLIMA&#9;1&#10;DORCAS GEOFREY KASEKWA&#9;2&#10;ALVIS MWAKALO   (bila jinsia, ni sawa pia)"></textarea>
+      <div class="hint-row">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7c8b89" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        <span>Kila mstari: jina kisha jinsia — <strong>1/kiume/me</strong> au <strong>2/kike/ke</strong>. Jinsia si lazima (hiari); ukiacha, mwanafunzi ataongezwa bila jinsia.</span>
+      </div>
+    </div>
+
+    <button class="btn btn-main" id="regBtn" onclick="submitRegistration()" disabled>Endelea kwenye Masomo &nbsp;→</button>
+  </div>
+</section>
+
+<!-- ============ SCREEN 1b: COLUMNS (MASOMO) ============ -->
+<section id="screenColumns" class="screen">
+  <div class="topbar">
+    <div class="brand">
+      <span class="dot"></span>
+      <div><span>Moby</span><small>Sajili Alama kwa Sauti</small></div>
+    </div>
+    <button class="icon-btn" onclick="backToRegistration()" title="Rudi kwenye usajili">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+    </button>
+  </div>
+
+  <div class="wrap">
+    <div class="reg-hero">
+      <h1>Ongeza masomo (columns)</h1>
+      <p>Hizi ndizo column zitakazoonekana kwenye Excel mwishoni. Tumia code fupi — hizi ndizo utakazotamka wakati wa kusajili alama kwa sauti (mfano HIS, KISW, ENG).</p>
+    </div>
+
+    <div class="field-card">
+      <label>Masomo Yaliyoongezwa <span class="count" id="colCount">0</span></label>
+      <div id="columnChips" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;"></div>
+      <div id="colEmptyNote" class="empty-note" style="display:none; padding:10px 0;">Bado hujaongeza somo lolote.</div>
+
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="colInput" class="form-control-inline" placeholder="mfano: HIS" style="flex:1; border:1.5px solid var(--line); border-radius:10px; padding:11px 12px; font-size:.9rem; outline:none;" onkeydown="if(event.key==='Enter'){event.preventDefault(); addColumn();}">
+        <button class="btn btn-ghost" onclick="addColumn()" style="padding:11px 18px;">+ Ongeza</button>
+      </div>
+    </div>
+
+    <button class="btn btn-main" id="startVoiceBtn" onclick="startVoiceFlow()" disabled>Anza Usajili wa Alama &nbsp;→</button>
+  </div>
+</section>
+
+<!-- saving overlay -->
+<div id="savingOverlay">
+  <div class="save-rings"><span></span><span></span></div>
+  <div class="save-text" id="savingText">Inahifadhi...</div>
+  <div class="save-sub">Tafadhali subiri kidogo</div>
+</div>
+
+<!-- ============ SCREEN 2: SAUTI ============ -->
+<section id="screenVoice" class="screen">
+  <div class="topbar">
+    <div class="brand">
+      <span class="dot"></span>
+      <div><span>Moby</span><small>Sajili Alama kwa Sauti</small></div>
+    </div>
+    <button class="icon-btn" onclick="confirmRestart()" title="Anza upya">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+    </button>
+  </div>
+
+  <div class="wrap">
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-label"><span id="progressText">0 / 0 wamekamilika</span><span id="progressPct">0%</span></div>
+
+    <div class="student-banner" id="detectedBanner" style="opacity:.55; transition:.25s opacity;">
+      <div>
+        <div class="label" id="detectedLabel">Bado hujatambuliwa</div>
+        <h2 id="currentStudentName">Sema jina la mwanafunzi…</h2>
+        <div class="pill" id="currentStudentGender" style="margin-top:6px; display:none;">—</div>
+      </div>
+      <div class="student-avatar" id="currentStudentInitials">🎙️</div>
+    </div>
+
+    <div class="mic-stage">
+      <div class="mic-ring-wrap" id="micRingWrap">
+        <span class="ripple"></span><span class="ripple"></span><span class="ripple"></span>
+        <button id="micBtn" onclick="toggleListening()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
+          </svg>
+        </button>
+      </div>
+      <div class="mic-status" id="micStatus">Gusa kuanza — mfumo utakuuliza maswali</div>
+      <div class="mic-substatus" id="micSubstatus">Mfumo utauliza jina, kisha kila somo — moja baada ya jingine</div>
+    </div>
+
+    <div class="transcript-box">
+      <span class="tb-label">Unachosema</span>
+      <p id="transcriptText" class="placeholder">Maneno yataonekana hapa unapoongea…</p>
+    </div>
+
+    <div class="example-tip">
+      <span>💡</span>
+      <span>Gusa mic mara moja tu. Mfumo utakuuliza: "Taja jina la mwanafunzi", kisha "Hisabati?", "Kiswahili?" n.k — jibu somo moja kwa wakati, mfumo utaendelea wenyewe.</span>
+    </div>
+
+    <div class="field-card" style="margin-top:18px; padding:16px 18px;">
+      <label>Wanafunzi <span class="count" id="rosterListCount">0</span></label>
+      <div id="rosterMiniList" style="display:flex; flex-direction:column; gap:6px; max-height:230px; overflow-y:auto;"></div>
+    </div>
+
+    <button class="btn btn-ghost" style="margin-top:14px;" onclick="goToDoneScreen()">Ona Muhtasari / Maliza &nbsp;→</button>
+  </div>
+</section>
+
+<!-- ============ SCREEN 3: KUKAMILIKA ============ -->
+<section id="screenDone" class="screen">
+  <div class="topbar">
+    <div class="brand">
+      <span class="dot"></span>
+      <div><span>Moby</span><small>Sajili Alama kwa Sauti</small></div>
+    </div>
+  </div>
+  <div class="wrap">
+    <div class="done-hero">
+      <div class="done-check">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6L9 17l-5-5"/></svg>
+      </div>
+      <h2>Umemaliza kusajili!</h2>
+      <p id="doneSummary">Wanafunzi wote wamesajiliwa alama zao.</p>
+    </div>
+
+    <div style="overflow-x:auto;">
+      <table class="review-table" id="reviewTable"></table>
+    </div>
+
+    <div class="footer-actions">
+      <button class="btn btn-ghost" onclick="backToVoiceScreen()">← Rudi Kusajili</button>
+      <button class="btn btn-ghost" onclick="downloadExcel()">⬇ Excel</button>
+      <button class="btn btn-main" onclick="confirmRestart()">Anza Upya</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CONFIRM MODAL ============ -->
+<div class="modal-backdrop" id="confirmModal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-check">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6L9 17l-5-5"/></svg>
+    </div>
+    <h3>Thibitisha Alama</h3>
+    <div class="modal-sub">Angalia kama alama zimesomeka sahihi. Unaweza kugusa alama kuhariri.</div>
+
+    <div class="confirm-name">
+      <div class="student-avatar" id="modalInitials">–</div>
+      <div class="cn-text">
+        <div class="cn-label">Mwanafunzi</div>
+        <select id="modalStudentSelect" onchange="onModalStudentChange()" style="font-family:'Sora',sans-serif; font-weight:800; font-size:1.02rem; color:var(--ink); border:none; background:none; outline:none; width:100%; padding:2px 0;">
+          <option value="">— Chagua mwanafunzi —</option>
+        </select>
+      </div>
+      <div class="pill" id="modalStudentGender">—</div>
+    </div>
+    <div id="matchWarning" class="no-scores" style="display:none; margin-bottom:12px;">⚠️ Sikuweza kutambua jina kwa uhakika. Chagua mwanafunzi sahihi hapo juu.</div>
+
+    <div id="modalScoreList" class="score-list"></div>
+    <div id="modalNoScores" class="no-scores" style="display:none;">⚠️ Hakuna alama zilizotambuliwa. Jaribu tena.</div>
+
+    <div class="raw-transcript"><b>Ulisema:</b> <span id="modalRaw"></span></div>
+
+    <div class="modal-actions">
+      <button class="btn btn-danger-ghost" onclick="closeModalAndRedo()">↺ Rudi</button>
+      <button class="btn btn-main" id="modalNextBtn" onclick="confirmAndNext()">Sawa, Endelea →</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- ============ RESUME / DELETE PROMPT ============ -->
+<div class="modal-backdrop" id="resumeModal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-check" style="background:#fdf6e8; color:var(--amber);">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+    </div>
+    <h3>Kuna kazi uliyoacha</h3>
+    <div class="modal-sub" id="resumeSummary">Umekuwa na usajili ambao haujakamilika. Je, unataka kuendelea nao au kufuta na kuanza upya?</div>
+
+    <div class="modal-actions">
+      <button class="btn btn-danger-ghost" onclick="deleteAndStartFresh()">🗑 Futa</button>
+      <button class="btn btn-main" onclick="resumeSavedWork()">Endelea →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+let roster = [];          // [{id, name, gender, done, subjects:{CODE:score}, raw}]
+let currentIndex = 0;
+let recognition = null;
+let listening = false;
+let finalTranscript = '';
+let autoRestart = true; // whether onend should silently restart the mic (mobile Chrome workaround)
+let pendingSubjects = {}; // subjects parsed for the confirm modal, editable
+let subjectColumns = [];  // ['HIS','KISW','ENG', ...]
+let tempRoster = [];      // built after step 1, before columns are confirmed
+
+const STORAGE_KEY = 'moby_sauti_roster_v1';
+
+// ============================================================
+// SCREEN NAV
+// ============================================================
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ============================================================
+// SCREEN 1 — REGISTRATION
+// ============================================================
+const namesInput = document.getElementById('namesInput');
+const nameCount = document.getElementById('nameCount');
+const regBtn = document.getElementById('regBtn');
+
+function normalizeGender(token){
+  if (!token) return null;
+  const t = token.trim().toLowerCase();
+  if (['1','me','kiume'].includes(t)) return 'Kiume';
+  if (['2','ke','kike'].includes(t)) return 'Kike';
+  return null;
+}
+
+// Parses lines like "JOHN BITON MWAMLIMA <tab-or-spaces> 1" into {name, gender}
+function parseNamesInput(){
+  const lines = namesInput.value.split('\n').map(s => s.trim()).filter(Boolean);
+  return lines.map(line => {
+    const m = line.match(/^(.*?)[\t ]+([12]|me|ke|kiume|kike)$/i);
+    if (m){
+      return { name: m[1].trim().replace(/\s+/g,' '), gender: normalizeGender(m[2]) };
+    }
+    return { name: line.replace(/\s+/g,' '), gender: null };
+  });
+}
+
+namesInput.addEventListener('input', () => {
+  const n = parseNamesInput().length;
+  nameCount.textContent = n;
+  regBtn.disabled = n === 0;
+});
+
+function submitRegistration(){
+  const entries = parseNamesInput();
+  if (!entries.length) return;
+
+  tempRoster = entries.map((e, i) => ({
+    id: 'S' + (i + 1) + '_' + Date.now(),
+    name: e.name,
+    gender: e.gender || '—',
+    done: false,
+    subjects: {},
+    raw: ''
+  }));
+
+  showScreen('screenColumns');
+  renderColumnChips();
+}
+
+function backToRegistration(){
+  showScreen('screenReg');
+}
+
+// ============================================================
+// COLUMNS (MASOMO) SETUP
+// ============================================================
+const colInput = document.getElementById('colInput');
+
+function addColumn(){
+  const val = colInput.value.trim().toUpperCase();
+  if (!val) return;
+  if (subjectColumns.includes(val)){
+    showToast('Somo hili tayari limeongezwa.');
+    colInput.value = '';
+    return;
+  }
+  subjectColumns.push(val);
+  colInput.value = '';
+  colInput.focus();
+  renderColumnChips();
+}
+
+function removeColumn(code){
+  subjectColumns = subjectColumns.filter(c => c !== code);
+  renderColumnChips();
+}
+
+function renderColumnChips(){
+  const wrap = document.getElementById('columnChips');
+  const emptyNote = document.getElementById('colEmptyNote');
+  document.getElementById('colCount').textContent = subjectColumns.length;
+  document.getElementById('startVoiceBtn').disabled = subjectColumns.length === 0;
+
+  if (!subjectColumns.length){
+    wrap.innerHTML = '';
+    emptyNote.style.display = 'block';
+    return;
+  }
+  emptyNote.style.display = 'none';
+  wrap.innerHTML = subjectColumns.map(code => `
+    <span style="display:inline-flex; align-items:center; gap:6px; background:var(--green-light); color:var(--green-dark); padding:6px 8px 6px 14px; border-radius:99px; font-weight:700; font-size:.82rem;">
+      ${escapeHtml(code)}
+      <button onclick="removeColumn('${escapeHtml(code)}')" style="border:none; background:rgba(10,125,83,.12); color:var(--green-dark); width:20px; height:20px; border-radius:50%; cursor:pointer; font-size:.7rem; line-height:1;">✕</button>
+    </span>
+  `).join('');
+}
+
+function startVoiceFlow(){
+  if (!subjectColumns.length) return;
+  const overlay = document.getElementById('savingOverlay');
+  overlay.classList.add('show');
+
+  setTimeout(() => {
+    roster = tempRoster;
+    currentIndex = 0;
+    saveState();
+    overlay.classList.remove('show');
+    showScreen('screenVoice');
+    renderVoiceScreen();
+  }, 1100);
+}
+
+// ============================================================
+// PERSISTENCE (localStorage so a refresh doesn't lose progress)
+// ============================================================
+function saveState(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ roster, currentIndex, subjectColumns }));
+  }catch(e){ /* storage unavailable — continue silently */ }
+}
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    if (!data || !Array.isArray(data.roster) || !data.roster.length) return false;
+    roster = data.roster;
+    currentIndex = data.currentIndex || 0;
+    subjectColumns = Array.isArray(data.subjectColumns) ? data.subjectColumns : [];
+    return true;
+  }catch(e){ return false; }
+}
+function clearState(){
+  try{ localStorage.removeItem(STORAGE_KEY); }catch(e){}
+}
+
+// ============================================================
+// SCREEN 2 — VOICE
+// ============================================================
+function initials(name){
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase();
+}
+
+function renderVoiceScreen(){
+  renderProgressAndList();
+  liveMatchedId = null;
+  refreshDetectedBanner(null);
+  resetTranscriptBox();
+}
+
+function backToVoiceScreen(){
+  showScreen('screenVoice');
+  renderVoiceScreen();
+}
+
+function renderProgressAndList(){
+  const doneCount = roster.filter(r => r.done).length;
+  const total = roster.length;
+  document.getElementById('progressFill').style.width = (total ? (doneCount/total*100) : 0) + '%';
+  document.getElementById('progressText').textContent = `${doneCount} / ${total} wamekamilika`;
+  document.getElementById('progressPct').textContent = Math.round(total ? doneCount/total*100 : 0) + '%';
+
+  document.getElementById('rosterListCount').textContent = total;
+  const listEl = document.getElementById('rosterMiniList');
+  listEl.innerHTML = roster.map(s => `
+    <div onclick="manualSelectGuidedStudent('${s.id}')" style="cursor:pointer; display:flex; align-items:center; justify-content:space-between; padding:9px 12px; border:1px solid var(--line); border-radius:10px; background:${s.done ? 'var(--green-light)' : '#fbfdfc'};">
+      <span style="font-size:.82rem; font-weight:600; color:${s.done ? 'var(--green-dark)' : 'var(--ink)'};">${escapeHtml(s.name)}</span>
+      <span style="font-size:.72rem; color:${s.done ? 'var(--green-dark)' : 'var(--ink-soft)'}; font-weight:700;">${s.done ? '✓ Tayari' : '⏳ Bado'}</span>
+    </div>
+  `).join('');
+}
+
+function resetTranscriptBox(){
+  finalTranscript = '';
+  const el = document.getElementById('transcriptText');
+  el.textContent = 'Maneno yataonekana hapa unapoongea…';
+  el.classList.add('placeholder');
+}
+
+function refreshDetectedBanner(student, tentative){
+  const banner = document.getElementById('detectedBanner');
+  const label = document.getElementById('detectedLabel');
+  const nameEl = document.getElementById('currentStudentName');
+  const genderEl = document.getElementById('currentStudentGender');
+  const avatarEl = document.getElementById('currentStudentInitials');
+
+  if (student){
+    banner.style.opacity = '1';
+    label.textContent = tentative ? 'Huenda ni' : 'Umepata';
+    nameEl.textContent = student.name;
+    genderEl.style.display = 'inline-flex';
+    genderEl.textContent = student.gender || '—';
+    avatarEl.textContent = initials(student.name) || '–';
+  } else {
+    banner.style.opacity = '.55';
+    label.textContent = 'Bado hujatambuliwa';
+    nameEl.textContent = 'Sema jina la mwanafunzi…';
+    genderEl.style.display = 'none';
+    avatarEl.textContent = '🎙️';
+  }
+}
+
+// ---- Fuzzy name matching (handles imperfect speech recognition) ----
+function levenshtein(a, b){
+  const m = a.length, n = b.length;
+  const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++){
+    for (let j = 1; j <= n; j++){
+      dp[i][j] = Math.min(
+        dp[i - 1][j] + 1,
+        dp[i][j - 1] + 1,
+        dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+      );
+    }
+  }
+  return dp[m][n];
+}
+
+function nameSimilarity(a, b){
+  a = (a || '').toUpperCase().trim();
+  b = (b || '').toUpperCase().trim();
+  if (!a || !b) return 0;
+  const dist = levenshtein(a, b);
+  const maxLen = Math.max(a.length, b.length);
+  return 1 - dist / maxLen;
+}
+
+function matchStudent(namePart){
+  if (!namePart) return { student: null, score: 0 };
+  let best = null, bestScore = 0;
+  roster.forEach(s => {
+    const sc = nameSimilarity(namePart, s.name);
+    if (sc > bestScore){ bestScore = sc; best = s; }
+  });
+  return { student: best, score: bestScore };
+}
+
+// Splits transcript into the spoken name and the sequence of numbers that follow it
+function extractNameAndScores(text){
+  const m = text.match(/^([^\d]*)([\s\S]*)$/);
+  let namePart = (m ? m[1] : text).trim();
+  const rest = m ? m[2] : '';
+  const numbers = (rest.match(/\d{1,3}/g) || []).map(n => Math.min(100, parseInt(n, 10)));
+  namePart = namePart.replace(/[^A-Za-zÀ-ÿ'’\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  return { namePart, numbers };
+}
+
+// ============================================================
+// GUIDED VOICE Q&A — mfumo unaongea (TTS) na kuuliza jina, kisha
+// somo moja baada ya jingine, badala ya mwalimu kusema kila kitu
+// mfululizo. Hii inaepuka mkanganyiko wa alama kwa sababu somo
+// moja linajibiwa kwa wakati mmoja tu.
+// ============================================================
+let liveMatchedId = null;
+let guidedActive = false;      // kikao cha maswali-kwa-sauti kinaendelea?
+let guidedStage = null;        // 'name' | 'subject' | 'awaiting-manual-name'
+let guidedStudent = null;      // mwanafunzi anayejazwa alama sasa hivi
+let guidedSubjectIdx = 0;
+let guidedSubjects = {};
+let guidedNameAttempts = 0;
+
+function getRecognitionCtor(){
+  return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+}
+
+// Collapses immediate stutter-repeats a phone's speech engine sometimes injects
+// (e.g. "lucas lucas kasekwa kasekwa 12 12" -> "lucas kasekwa 12").
+function collapseRepeats(text){
+  const words = (text || '').trim().split(/\s+/);
+  const out = [];
+  for (const w of words){
+    if (out.length && out[out.length - 1].toLowerCase() === w.toLowerCase()) continue;
+    out.push(w);
+  }
+  return out.join(' ');
+}
+
+function subjectLabel(code){
+  const c = (code || '').toString();
+  return c.charAt(0).toUpperCase() + c.slice(1).toLowerCase();
+}
+
+// Speaks text aloud, then calls onDone once finished. The mic must stay off
+// while the system talks, or it would try to listen to its own voice.
+function speak(text, onDone){
+  if (!('speechSynthesis' in window)){ if (onDone) onDone(); return; }
+  try {
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = 'sw-TZ';
+    utter.rate = 0.98;
+    let done = false;
+    const finish = () => { if (!done){ done = true; if (onDone) onDone(); } };
+    utter.onend = finish;
+    utter.onerror = finish;
+    // Safety net: some mobile browsers occasionally never fire onend
+    setTimeout(finish, Math.max(1600, text.length * 90));
+    window.speechSynthesis.speak(utter);
+  } catch(e){
+    if (onDone) onDone();
+  }
+}
+
+function toggleListening(){
+  const Ctor = getRecognitionCtor();
+  if (!Ctor){
+    showToast('Kivinjari hiki hakitumii utambuzi wa sauti. Tumia Chrome kwenye simu au kompyuta.');
+    return;
+  }
+  if (guidedActive || listening){
+    guidedActive = false;
+    autoRestart = false;
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    recognition && recognition.stop();
+    stopListeningUI();
+    return;
+  }
+  startGuidedFlow();
+}
+
+function startGuidedFlow(){
+  guidedActive = true;
+  guidedStudent = null;
+  guidedSubjectIdx = 0;
+  guidedSubjects = {};
+  guidedNameAttempts = 0;
+  listening = true;
+  document.getElementById('micBtn').classList.add('rec');
+  document.getElementById('micRingWrap').classList.add('rec');
+  document.getElementById('micStatus').textContent = 'Kikao kinaendelea… gusa kusitisha';
+  askForName();
+}
+
+function askForName(){
+  if (!guidedActive) return;
+  guidedStage = 'name';
+  refreshDetectedBanner(null);
+  document.getElementById('micSubstatus').textContent = 'Mfumo linauliza jina la mwanafunzi…';
+  speak('Taja jina la mwanafunzi.', () => { if (guidedActive) listenOnce(); });
+}
+
+function askForSubject(){
+  if (!guidedActive) return;
+  guidedStage = 'subject';
+  const code = subjectColumns[guidedSubjectIdx];
+  document.getElementById('micSubstatus').textContent = 'Mfumo linauliza: ' + subjectLabel(code);
+  speak(subjectLabel(code) + '?', () => { if (guidedActive) listenOnce(); });
+}
+
+// Records a single short answer (one name, or one number), then hands it to
+// handleGuidedAnswer once the teacher stops talking.
+function listenOnce(){
+  const Ctor = getRecognitionCtor();
+  if (!Ctor){
+    showToast('Kivinjari hiki hakitumii utambuzi wa sauti.');
+    guidedActive = false;
+    stopListeningUI();
+    return;
+  }
+  recognition = new Ctor();
+  recognition.lang = 'sw-TZ';
+  recognition.continuous = false;
+  recognition.interimResults = true;
+  listening = true;
+
+  let localFinal = '';
+  const el = document.getElementById('transcriptText');
+  el.classList.remove('placeholder');
+  el.textContent = '';
+
+  recognition.onresult = (event) => {
+    let interim = '';
+    for (let i = event.resultIndex; i < event.results.length; i++){
+      const chunk = event.results[i][0].transcript;
+      if (event.results[i].isFinal) localFinal = collapseRepeats(localFinal + ' ' + chunk);
+      else interim += chunk;
+    }
+    el.innerHTML = escapeHtml(localFinal) + (interim ? `<span class="interim">${escapeHtml(interim)}</span>` : '');
+  };
+
+  recognition.onerror = (event) => {
+    if (event.error === 'no-speech'){
+      if (guidedActive){ try { recognition.start(); } catch(e){ /* restart pending */ } }
+      return;
+    }
+    guidedActive = false;
+    stopListeningUI();
+    if (event.error === 'not-allowed'){
+      showToast('Ruhusu matumizi ya microphone kwenye kivinjari.');
+    } else if (event.error === 'network'){
+      showToast('Hakuna mtandao. Utambuzi wa sauti unahitaji intaneti.');
+    } else {
+      showToast('Hitilafu ya sauti: ' + event.error);
+    }
+  };
+
+  recognition.onend = () => {
+    if (!guidedActive){ stopListeningUI(); return; }
+    const text = localFinal.trim();
+    if (!text){
+      // Hakuna kilichosikika — uliza tena bila kukasirisha mwalimu
+      if (guidedStage === 'name') askForName(); else askForSubject();
+      return;
+    }
+    handleGuidedAnswer(text);
+  };
+
+  recognition.start();
+}
+
+function handleGuidedAnswer(text){
+  if (guidedStage === 'name'){
+    const clean = text.replace(/[^A-Za-zÀ-ÿ'’\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    const { student, score } = matchStudent(clean);
+    if (student && score >= 0.55 && !student.done){
+      guidedStudent = student;
+      guidedSubjectIdx = 0;
+      guidedSubjects = {};
+      guidedNameAttempts = 0;
+      refreshDetectedBanner(student, score < 0.7);
+      askForSubject();
+    } else {
+      guidedNameAttempts++;
+      if (guidedNameAttempts >= 3){
+        guidedStage = 'awaiting-manual-name';
+        stopListeningUI();
+        document.getElementById('micSubstatus').textContent = 'Gusa jina la mwanafunzi kwenye orodha chini';
+        speak('Sikuweza kutambua jina. Tafadhali gusa jina lake kwenye orodha chini.');
+      } else {
+        speak('Samahani, sikupata vizuri. Sema tena jina la mwanafunzi.', () => { if (guidedActive) listenOnce(); });
+      }
+    }
+  } else if (guidedStage === 'subject'){
+    const numMatch = text.match(/\d{1,3}/);
+    if (numMatch){
+      const val = Math.min(100, parseInt(numMatch[0], 10));
+      const code = subjectColumns[guidedSubjectIdx];
+      guidedSubjects[code] = val;
+      guidedSubjectIdx++;
+      if (guidedSubjectIdx < subjectColumns.length){
+        askForSubject();
+      } else {
+        finishGuidedStudent();
+      }
+    } else {
+      speak('Sikupata namba. Tafadhali sema namba ya ' + subjectLabel(subjectColumns[guidedSubjectIdx]) + '.', () => { if (guidedActive) listenOnce(); });
+    }
+  }
+}
+
+// Allows the teacher to tap a name directly from the roster list — used as a
+// fallback when the mic keeps mishearing a name, and works even mid-session.
+function manualSelectGuidedStudent(id){
+  const student = roster.find(s => s.id === id);
+  if (!student) return;
+  if (student.done){
+    showToast(student.name + ' tayari amekamilika.');
+    return;
+  }
+  guidedStudent = student;
+  guidedSubjectIdx = 0;
+  guidedSubjects = {};
+  guidedNameAttempts = 0;
+  refreshDetectedBanner(student, false);
+  if (!guidedActive){
+    guidedActive = true;
+    listening = true;
+    document.getElementById('micBtn').classList.add('rec');
+    document.getElementById('micRingWrap').classList.add('rec');
+    document.getElementById('micStatus').textContent = 'Kikao kinaendelea… gusa kusitisha';
+  }
+  askForSubject();
+}
+
+function finishGuidedStudent(){
+  guidedStudent.subjects = { ...guidedSubjects };
+  guidedStudent.raw = Object.entries(guidedSubjects).map(([k, v]) => k + ' ' + v).join(' ');
+  guidedStudent.done = true;
+  saveState();
+  renderProgressAndList();
+  const name = guidedStudent.name;
+  resetTranscriptBox();
+  liveMatchedId = null;
+  refreshDetectedBanner(null);
+
+  if (roster.every(r => r.done)){
+    guidedActive = false;
+    stopListeningUI();
+    speak('Hongera, umemaliza wanafunzi wote.', () => goToDoneScreen());
+  } else {
+    speak('Sawa, ' + name + ' amehifadhiwa. Sasa taja jina la mwanafunzi mwingine.', () => {
+      if (guidedActive) askForName();
+    });
+  }
+}
+
+function stopListeningUI(){
+  listening = false;
+  document.getElementById('micBtn').classList.remove('rec');
+  document.getElementById('micRingWrap').classList.remove('rec');
+  document.getElementById('micStatus').textContent = 'Gusa kuanza — mfumo utakuuliza maswali';
+  document.getElementById('micSubstatus').textContent = 'Mfumo utauliza jina, kisha kila somo — moja baada ya jingine';
+}
+
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.innerText = str || '';
+  return d.innerHTML;
+}
+
+// ============================================================
+// CONFIRM MODAL
+// ============================================================
+function populateModalStudentSelect(selectedId){
+  const sel = document.getElementById('modalStudentSelect');
+  sel.innerHTML = '<option value="">— Chagua mwanafunzi —</option>' +
+    roster.map(s => `<option value="${s.id}" ${s.id === selectedId ? 'selected' : ''}>${escapeHtml(s.name)}${s.done ? '  ✓' : ''}</option>`).join('');
+}
+
+function onModalStudentChange(){
+  const sel = document.getElementById('modalStudentSelect');
+  const student = roster.find(s => s.id === sel.value);
+  document.getElementById('modalInitials').textContent = student ? (initials(student.name) || '–') : '–';
+  document.getElementById('modalStudentGender').textContent = student ? (student.gender || '—') : '—';
+  document.getElementById('matchWarning').style.display = student ? 'none' : 'block';
+  document.getElementById('modalNextBtn').disabled = !student;
+}
+
+function openConfirmModal(rawText){
+  const { namePart, numbers } = extractNameAndScores(rawText);
+  const { student, score } = matchStudent(namePart);
+
+  pendingSubjects = {};
+  subjectColumns.forEach((col, i) => {
+    if (numbers[i] !== undefined) pendingSubjects[col] = numbers[i];
+  });
+
+  populateModalStudentSelect(student ? student.id : '');
+  document.getElementById('matchWarning').style.display = (student && score >= 0.6) ? 'none' : 'block';
+  document.getElementById('modalInitials').textContent = student ? (initials(student.name) || '–') : '–';
+  document.getElementById('modalStudentGender').textContent = student ? (student.gender || '—') : '—';
+  document.getElementById('modalNextBtn').disabled = !student;
+  document.getElementById('modalRaw').textContent = rawText;
+
+  renderModalScores();
+  document.getElementById('confirmModal').classList.add('open');
+}
+
+// Shows one row per defined column (Step 2), filled positionally from the
+// numbers spoken after the name. Empty ones can be typed in manually.
+function renderModalScores(){
+  const list = document.getElementById('modalScoreList');
+  const empty = document.getElementById('modalNoScores');
+
+  if (!subjectColumns.length){
+    list.innerHTML = '';
+    empty.style.display = 'block';
+    empty.textContent = '⚠️ Hakuna masomo yaliyowekwa. Rudi kwenye Hatua ya Masomo.';
+    return;
+  }
+  empty.style.display = 'none';
+
+  list.innerHTML = subjectColumns.map(code => {
+    const has = pendingSubjects[code] !== undefined;
+    return `
+    <div class="score-row" data-code="${escapeHtml(code)}">
+      <span class="subj">${escapeHtml(code)}</span>
+      <span class="val ${has ? '' : 'val-empty'}" contenteditable="true" oninput="editScoreVal(this,'${escapeHtml(code)}')" style="${has ? '' : 'color:#a9bab4;'}">${has ? pendingSubjects[code] : '–'}</span>
+    </div>`;
+  }).join('');
+}
+
+function editScoreVal(el, code){
+  const raw = el.innerText.replace(/\D/g, '');
+  if (!raw){
+    delete pendingSubjects[code];
+    el.style.color = '#a9bab4';
+    return;
+  }
+  let v = parseInt(raw, 10);
+  if (v > 100) v = 100;
+  pendingSubjects[code] = v;
+  el.style.color = '';
+}
+
+function closeModalAndRedo(){
+  document.getElementById('confirmModal').classList.remove('open');
+  resetTranscriptBox();
+  liveMatchedId = null;
+  refreshDetectedBanner(null);
+  showToast('Sawa, jaribu tena.');
+  if (!guidedActive && !listening) startGuidedFlow();
+}
+
+function confirmAndNext(){
+  const sel = document.getElementById('modalStudentSelect');
+  const student = roster.find(s => s.id === sel.value);
+  if (!student) return;
+
+  student.subjects = { ...pendingSubjects };
+  student.raw = document.getElementById('modalRaw').textContent;
+  student.done = true;
+
+  document.getElementById('confirmModal').classList.remove('open');
+  saveState();
+  resetTranscriptBox();
+  liveMatchedId = null;
+  refreshDetectedBanner(null);
+  renderProgressAndList();
+
+  if (roster.every(r => r.done)){
+    showToast('✓ ' + student.name + ' imehifadhiwa — wote wamekamilika 🎉');
+    goToDoneScreen();
+  } else {
+    showToast('✓ Imehifadhiwa: ' + student.name);
+    if (!guidedActive && !listening) startGuidedFlow();
+  }
+}
+
+// ============================================================
+// SCREEN 3 — DONE
+// ============================================================
+function goToDoneScreen(){
+  showScreen('screenDone');
+  const total = roster.length;
+  const doneCount = roster.filter(r => r.done).length;
+  document.getElementById('doneSummary').textContent = doneCount >= total
+    ? `Wanafunzi wote ${total} wamesajiliwa alama zao kwa mafanikio.`
+    : `Umesajili wanafunzi ${doneCount} kati ya ${total}. Unaweza kurudi kukamilisha waliobaki.`;
+
+  const codes = subjectColumns;
+  const table = document.getElementById('reviewTable');
+  let head = '<tr><th>Jina</th><th>Jinsia</th>' + codes.map(c => `<th>${escapeHtml(c)}</th>`).join('') + '</tr>';
+  let body = roster.map(r => {
+    return '<tr><td>' + escapeHtml(r.name) + '</td><td>' + escapeHtml(r.gender || '—') + '</td>' +
+      codes.map(c => `<td>${r.subjects[c] !== undefined ? r.subjects[c] : '—'}</td>`).join('') +
+      '</tr>';
+  }).join('');
+  table.innerHTML = head + body;
+}
+
+function downloadExcel(){
+  try{
+    const codes = subjectColumns;
+    const header = ['Jina', 'Jinsia', ...codes];
+    const rows = roster.map(r => [r.name, r.gender || '', ...codes.map(c => r.subjects[c] !== undefined ? r.subjects[c] : '')]);
+    const aoa = [header, ...rows];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = header.map(() => ({ wch: 16 }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Alama');
+    XLSX.writeFile(wb, 'Moby_Alama_' + Date.now() + '.xlsx');
+  }catch(e){
+    showToast('Imeshindikana kupakua Excel.');
+  }
+}
+
+// ============================================================
+// RESTART
+// ============================================================
+function confirmRestart(){
+  if (!confirm('Una uhakika unataka kuanza upya? Data yote iliyopo itafutika.')) return;
+  roster = [];
+  tempRoster = [];
+  subjectColumns = [];
+  currentIndex = 0;
+  clearState();
+  namesInput.value = '';
+  nameCount.textContent = '0';
+  regBtn.disabled = true;
+  renderColumnChips();
+  showScreen('screenReg');
+}
+
+// ============================================================
+// TOAST
+// ============================================================
+let toastTimer;
+function showToast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+// ============================================================
+// INIT — ask whether to resume or delete saved progress
+// ============================================================
+(function init(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (!data || !Array.isArray(data.roster) || !data.roster.length) return;
+
+    const doneCount = data.roster.filter(r => r.done).length;
+    const total = data.roster.length;
+    document.getElementById('resumeSummary').textContent =
+      `Ulikuwa umesajili ${doneCount}/${total} kati ya wanafunzi. Je, unataka kuendelea nao au kufuta na kuanza upya?`;
+    document.getElementById('resumeModal').classList.add('open');
+  }catch(e){ /* ignore corrupt storage */ }
+})();
+
+function resumeSavedWork(){
+  document.getElementById('resumeModal').classList.remove('open');
+  if (loadState()){
+    if (roster.length && roster.every(r => r.done)){
+      showScreen('screenDone');
+      goToDoneScreen();
+    } else {
+      showScreen('screenVoice');
+      renderVoiceScreen();
+    }
+  }
+}
+
+function deleteAndStartFresh(){
+  document.getElementById('resumeModal').classList.remove('open');
+  roster = [];
+  tempRoster = [];
+  subjectColumns = [];
+  currentIndex = 0;
+  clearState();
+  namesInput.value = '';
+  nameCount.textContent = '0';
+  regBtn.disabled = true;
+  renderColumnChips();
+  showScreen('screenReg');
+  showToast('Kazi ya awali imefutwa. Anza upya.');
+}
+</script>
+</body>
+</html>
