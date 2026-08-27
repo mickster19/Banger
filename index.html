@@ -308,10 +308,10 @@
 
     <div class="field-card">
       <label>Jina na Jinsia (moja kwa kila mstari) <span class="count" id="nameCount">0</span></label>
-      <textarea id="namesInput" placeholder="Bandika: JINA  [Tab au nafasi]  JINSIA (hiari)&#10;Jinsia: 1 / kiume / me  kwa mvulana,  2 / kike / ke kwa msichana&#10;&#10;Mfano:&#10;JOHN BITON MWAMLIMA&#9;1&#10;DORCAS GEOFREY KASEKWA&#9;2&#10;ALVIS MWAKALO   (bila jinsia, ni sawa pia)"></textarea>
+      <textarea id="namesInput" placeholder="Bandika: JINA  [Tab au nafasi]  JINSIA&#10;Jinsia: 1 / kiume / me  kwa mvulana,  2 / kike / ke kwa msichana&#10;&#10;Mfano:&#10;JOHN BITON MWAMLIMA&#9;1&#10;DORCAS GEOFREY KASEKWA&#9;2"></textarea>
       <div class="hint-row">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7c8b89" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-        <span>Kila mstari: jina kisha jinsia — <strong>1/kiume/me</strong> au <strong>2/kike/ke</strong>. Jinsia si lazima (hiari); ukiacha, mwanafunzi ataongezwa bila jinsia.</span>
+        <span>Kila mstari: jina kisha jinsia (1/kiume/me au 2/kike/ke), zikitenganishwa na tab au nafasi.</span>
       </div>
     </div>
 
@@ -395,8 +395,8 @@
           </svg>
         </button>
       </div>
-      <div class="mic-status" id="micStatus">Gusa kuanza — mfumo utakuuliza maswali</div>
-      <div class="mic-substatus" id="micSubstatus">Mfumo utauliza jina, kisha kila somo — moja baada ya jingine</div>
+      <div class="mic-status" id="micStatus">Gusa kuanza kuongea</div>
+      <div class="mic-substatus" id="micSubstatus">Taja jina, kisha alama moja baada ya nyingine, kisha sema "endelea"</div>
     </div>
 
     <div class="transcript-box">
@@ -406,7 +406,7 @@
 
     <div class="example-tip">
       <span>💡</span>
-      <span>Gusa mic mara moja tu. Mfumo utakuuliza: "Taja jina la mwanafunzi", kisha "Hisabati?", "Kiswahili?" n.k — jibu somo moja kwa wakati, mfumo utaendelea wenyewe.</span>
+      <span>Mfano: <code>LINUS KIPYOKA 24 22 18 ENDELEA</code> — alama zinafuata mpangilio wa masomo uliyoweka, sema "endelea" kuendelea na mwanafunzi anayefuata</span>
     </div>
 
     <div class="field-card" style="margin-top:18px; padding:16px 18px;">
@@ -691,7 +691,7 @@ function renderProgressAndList(){
   document.getElementById('rosterListCount').textContent = total;
   const listEl = document.getElementById('rosterMiniList');
   listEl.innerHTML = roster.map(s => `
-    <div onclick="manualSelectGuidedStudent('${s.id}')" style="cursor:pointer; display:flex; align-items:center; justify-content:space-between; padding:9px 12px; border:1px solid var(--line); border-radius:10px; background:${s.done ? 'var(--green-light)' : '#fbfdfc'};">
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:9px 12px; border:1px solid var(--line); border-radius:10px; background:${s.done ? 'var(--green-light)' : '#fbfdfc'};">
       <span style="font-size:.82rem; font-weight:600; color:${s.done ? 'var(--green-dark)' : 'var(--ink)'};">${escapeHtml(s.name)}</span>
       <span style="font-size:.72rem; color:${s.done ? 'var(--green-dark)' : 'var(--ink-soft)'}; font-weight:700;">${s.done ? '✓ Tayari' : '⏳ Bado'}</span>
     </div>
@@ -775,26 +775,72 @@ function extractNameAndScores(text){
   return { namePart, numbers };
 }
 
-// ============================================================
-// GUIDED VOICE Q&A — mfumo unaongea (TTS) na kuuliza jina, kisha
-// somo moja baada ya jingine, badala ya mwalimu kusema kila kitu
-// mfululizo. Hii inaepuka mkanganyiko wa alama kwa sababu somo
-// moja linajibiwa kwa wakati mmoja tu.
-// ============================================================
+// Handles a spoken segment ("NAME SCORE SCORE SCORE") once the teacher says
+// "endelea". If the name is a confident match and scores were heard, save
+// immediately and keep listening for the next student — fully hands-free.
+// Otherwise, pause the mic and open the confirm card so the teacher can fix it.
+function handleVoiceSegment(text){
+  if (!text){
+    showToast('Sema jina na alama kabla ya kusema "endelea".');
+    return;
+  }
+  const { namePart, numbers } = extractNameAndScores(text);
+  const { student, score } = matchStudent(namePart);
+
+  if (student && score >= 0.6 && numbers.length > 0){
+    const subjects = {};
+    subjectColumns.forEach((col, i) => {
+      if (numbers[i] !== undefined) subjects[col] = numbers[i];
+    });
+    student.subjects = { ...subjects };
+    student.raw = text;
+    student.done = true;
+    saveState();
+    renderProgressAndList();
+    resetTranscriptBox();
+    liveMatchedId = null;
+    refreshDetectedBanner(null);
+
+    if (roster.every(r => r.done)){
+      autoRestart = false;
+      if (recognition) recognition.stop();
+      showToast('✓ ' + student.name + ' imehifadhiwa — wote wamekamilika 🎉');
+      goToDoneScreen();
+    } else {
+      showToast('✓ Imehifadhiwa: ' + student.name + ' — sema mwanafunzi anayefuata');
+    }
+  } else {
+    // Not confident enough, or no scores heard — ask teacher to confirm by hand
+    autoRestart = false;
+    if (recognition) recognition.stop();
+    openConfirmModal(text);
+  }
+}
+
+// ---- Speech Recognition ----
 let liveMatchedId = null;
-let guidedActive = false;      // kikao cha maswali-kwa-sauti kinaendelea?
-let guidedStage = null;        // 'name' | 'subject' | 'awaiting-manual-name'
-let guidedStudent = null;      // mwanafunzi anayejazwa alama sasa hivi
-let guidedSubjectIdx = 0;
-let guidedSubjects = {};
-let guidedNameAttempts = 0;
 
 function getRecognitionCtor(){
   return window.SpeechRecognition || window.webkitSpeechRecognition || null;
 }
 
+function toggleListening(){
+  const Ctor = getRecognitionCtor();
+  if (!Ctor){
+    showToast('Kivinjari hiki hakitumii utambuzi wa sauti. Tumia Chrome kwenye simu au kompyuta.');
+    return;
+  }
+  if (listening){
+    autoRestart = false; // teacher deliberately stopped — don't silently restart
+    recognition && recognition.stop();
+    return;
+  }
+  startListening(Ctor);
+}
+
 // Collapses immediate stutter-repeats a phone's speech engine sometimes injects
-// (e.g. "lucas lucas kasekwa kasekwa 12 12" -> "lucas kasekwa 12").
+// (e.g. "lucas lucas kasekwa kasekwa 12 12" -> "lucas kasekwa 12"), as a light
+// safety net on top of the continuous-mode fix below.
 function collapseRepeats(text){
   const words = (text || '').trim().split(/\s+/);
   const out = [];
@@ -805,115 +851,68 @@ function collapseRepeats(text){
   return out.join(' ');
 }
 
-function subjectLabel(code){
-  const c = (code || '').toString();
-  return c.charAt(0).toUpperCase() + c.slice(1).toLowerCase();
-}
-
-// Speaks text aloud, then calls onDone once finished. The mic must stay off
-// while the system talks, or it would try to listen to its own voice.
-function speak(text, onDone){
-  if (!('speechSynthesis' in window)){ if (onDone) onDone(); return; }
-  try {
-    window.speechSynthesis.cancel();
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.lang = 'sw-TZ';
-    utter.rate = 0.98;
-    let done = false;
-    const finish = () => { if (!done){ done = true; if (onDone) onDone(); } };
-    utter.onend = finish;
-    utter.onerror = finish;
-    // Safety net: some mobile browsers occasionally never fire onend
-    setTimeout(finish, Math.max(1600, text.length * 90));
-    window.speechSynthesis.speak(utter);
-  } catch(e){
-    if (onDone) onDone();
-  }
-}
-
-function toggleListening(){
-  const Ctor = getRecognitionCtor();
-  if (!Ctor){
-    showToast('Kivinjari hiki hakitumii utambuzi wa sauti. Tumia Chrome kwenye simu au kompyuta.');
-    return;
-  }
-  if (guidedActive || listening){
-    guidedActive = false;
-    autoRestart = false;
-    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-    recognition && recognition.stop();
-    stopListeningUI();
-    return;
-  }
-  startGuidedFlow();
-}
-
-function startGuidedFlow(){
-  guidedActive = true;
-  guidedStudent = null;
-  guidedSubjectIdx = 0;
-  guidedSubjects = {};
-  guidedNameAttempts = 0;
-  listening = true;
-  document.getElementById('micBtn').classList.add('rec');
-  document.getElementById('micRingWrap').classList.add('rec');
-  document.getElementById('micStatus').textContent = 'Kikao kinaendelea… gusa kusitisha';
-  askForName();
-}
-
-function askForName(){
-  if (!guidedActive) return;
-  guidedStage = 'name';
-  refreshDetectedBanner(null);
-  document.getElementById('micSubstatus').textContent = 'Mfumo linauliza jina la mwanafunzi…';
-  speak('Taja jina la mwanafunzi.', () => { if (guidedActive) listenOnce(); });
-}
-
-function askForSubject(){
-  if (!guidedActive) return;
-  guidedStage = 'subject';
-  const code = subjectColumns[guidedSubjectIdx];
-  document.getElementById('micSubstatus').textContent = 'Mfumo linauliza: ' + subjectLabel(code);
-  speak(subjectLabel(code) + '?', () => { if (guidedActive) listenOnce(); });
-}
-
-// Records a single short answer (one name, or one number), then hands it to
-// handleGuidedAnswer once the teacher stops talking.
-function listenOnce(){
-  const Ctor = getRecognitionCtor();
-  if (!Ctor){
-    showToast('Kivinjari hiki hakitumii utambuzi wa sauti.');
-    guidedActive = false;
-    stopListeningUI();
-    return;
-  }
+function startListening(Ctor){
   recognition = new Ctor();
   recognition.lang = 'sw-TZ';
+  // NOTE: continuous:true is unreliable on mobile Chrome — the engine silently
+  // restarts every so often and can redeliver old "final" results, which is
+  // what caused names/numbers to repeat and duplicate. Instead we run short
+  // sessions and restart them ourselves in onend, which keeps the mic feeling
+  // continuous to the teacher without that bug.
   recognition.continuous = false;
   recognition.interimResults = true;
-  listening = true;
 
-  let localFinal = '';
-  const el = document.getElementById('transcriptText');
-  el.classList.remove('placeholder');
-  el.textContent = '';
+  recognition.onstart = () => {
+    listening = true;
+    autoRestart = true;
+    liveMatchedId = null;
+    refreshDetectedBanner(null);
+    document.getElementById('micBtn').classList.add('rec');
+    document.getElementById('micRingWrap').classList.add('rec');
+    document.getElementById('micStatus').textContent = 'Inasikiliza… gusa kusitisha';
+    document.getElementById('micSubstatus').textContent = 'Taja jina kisha alama, kisha sema "endelea"';
+    const el = document.getElementById('transcriptText');
+    el.classList.remove('placeholder');
+    el.textContent = finalTranscript ? escapeHtml(finalTranscript) : '';
+  };
 
   recognition.onresult = (event) => {
     let interim = '';
     for (let i = event.resultIndex; i < event.results.length; i++){
       const chunk = event.results[i][0].transcript;
-      if (event.results[i].isFinal) localFinal = collapseRepeats(localFinal + ' ' + chunk);
+      if (event.results[i].isFinal) finalTranscript = collapseRepeats(finalTranscript + ' ' + chunk);
       else interim += chunk;
     }
-    el.innerHTML = escapeHtml(localFinal) + (interim ? `<span class="interim">${escapeHtml(interim)}</span>` : '');
+    const el = document.getElementById('transcriptText');
+    el.innerHTML = escapeHtml(finalTranscript) + (interim ? `<span class="interim">${escapeHtml(interim)}</span>` : '');
+
+    // Voice command: saying "endelea" commits the current student and moves on,
+    // hands-free — no need to touch the screen between students.
+    if (/\bendelea\b/i.test(finalTranscript)){
+      const segment = finalTranscript.replace(/\bendelea\b/i, '').trim();
+      finalTranscript = '';
+      handleVoiceSegment(segment);
+      return;
+    }
+
+    // Live name detection so the teacher gets feedback while still speaking
+    const { namePart } = extractNameAndScores(finalTranscript);
+    if (namePart){
+      const { student, score } = matchStudent(namePart);
+      if (student && score >= 0.4 && liveMatchedId !== student.id){
+        liveMatchedId = student.id;
+        refreshDetectedBanner(student, score < 0.6);
+        showToast('🎯 Jina: ' + student.name);
+      }
+    }
   };
 
   recognition.onerror = (event) => {
     if (event.error === 'no-speech'){
-      if (guidedActive){ try { recognition.start(); } catch(e){ /* restart pending */ } }
+      // Just a silent pause — let onend restart the session quietly, no toast spam
       return;
     }
-    guidedActive = false;
+    autoRestart = false;
     stopListeningUI();
     if (event.error === 'not-allowed'){
       showToast('Ruhusu matumizi ya microphone kwenye kivinjari.');
@@ -925,111 +924,26 @@ function listenOnce(){
   };
 
   recognition.onend = () => {
-    if (!guidedActive){ stopListeningUI(); return; }
-    const text = localFinal.trim();
-    if (!text){
-      // Hakuna kilichosikika — uliza tena bila kukasirisha mwalimu
-      if (guidedStage === 'name') askForName(); else askForSubject();
+    if (autoRestart && listening){
+      // Mobile Chrome ends short sessions on its own — restart transparently
+      // so it feels like one continuous listening session to the teacher.
+      try { recognition.start(); } catch(e){ /* a start is already pending */ }
       return;
     }
-    handleGuidedAnswer(text);
+    stopListeningUI();
+    const text = finalTranscript.trim();
+    if (text) openConfirmModal(text);
   };
 
   recognition.start();
-}
-
-function handleGuidedAnswer(text){
-  if (guidedStage === 'name'){
-    const clean = text.replace(/[^A-Za-zÀ-ÿ'’\s]/g, ' ').replace(/\s+/g, ' ').trim();
-    const { student, score } = matchStudent(clean);
-    if (student && score >= 0.55 && !student.done){
-      guidedStudent = student;
-      guidedSubjectIdx = 0;
-      guidedSubjects = {};
-      guidedNameAttempts = 0;
-      refreshDetectedBanner(student, score < 0.7);
-      askForSubject();
-    } else {
-      guidedNameAttempts++;
-      if (guidedNameAttempts >= 3){
-        guidedStage = 'awaiting-manual-name';
-        stopListeningUI();
-        document.getElementById('micSubstatus').textContent = 'Gusa jina la mwanafunzi kwenye orodha chini';
-        speak('Sikuweza kutambua jina. Tafadhali gusa jina lake kwenye orodha chini.');
-      } else {
-        speak('Samahani, sikupata vizuri. Sema tena jina la mwanafunzi.', () => { if (guidedActive) listenOnce(); });
-      }
-    }
-  } else if (guidedStage === 'subject'){
-    const numMatch = text.match(/\d{1,3}/);
-    if (numMatch){
-      const val = Math.min(100, parseInt(numMatch[0], 10));
-      const code = subjectColumns[guidedSubjectIdx];
-      guidedSubjects[code] = val;
-      guidedSubjectIdx++;
-      if (guidedSubjectIdx < subjectColumns.length){
-        askForSubject();
-      } else {
-        finishGuidedStudent();
-      }
-    } else {
-      speak('Sikupata namba. Tafadhali sema namba ya ' + subjectLabel(subjectColumns[guidedSubjectIdx]) + '.', () => { if (guidedActive) listenOnce(); });
-    }
-  }
-}
-
-// Allows the teacher to tap a name directly from the roster list — used as a
-// fallback when the mic keeps mishearing a name, and works even mid-session.
-function manualSelectGuidedStudent(id){
-  const student = roster.find(s => s.id === id);
-  if (!student) return;
-  if (student.done){
-    showToast(student.name + ' tayari amekamilika.');
-    return;
-  }
-  guidedStudent = student;
-  guidedSubjectIdx = 0;
-  guidedSubjects = {};
-  guidedNameAttempts = 0;
-  refreshDetectedBanner(student, false);
-  if (!guidedActive){
-    guidedActive = true;
-    listening = true;
-    document.getElementById('micBtn').classList.add('rec');
-    document.getElementById('micRingWrap').classList.add('rec');
-    document.getElementById('micStatus').textContent = 'Kikao kinaendelea… gusa kusitisha';
-  }
-  askForSubject();
-}
-
-function finishGuidedStudent(){
-  guidedStudent.subjects = { ...guidedSubjects };
-  guidedStudent.raw = Object.entries(guidedSubjects).map(([k, v]) => k + ' ' + v).join(' ');
-  guidedStudent.done = true;
-  saveState();
-  renderProgressAndList();
-  const name = guidedStudent.name;
-  resetTranscriptBox();
-  liveMatchedId = null;
-  refreshDetectedBanner(null);
-
-  if (roster.every(r => r.done)){
-    guidedActive = false;
-    stopListeningUI();
-    speak('Hongera, umemaliza wanafunzi wote.', () => goToDoneScreen());
-  } else {
-    speak('Sawa, ' + name + ' amehifadhiwa. Sasa taja jina la mwanafunzi mwingine.', () => {
-      if (guidedActive) askForName();
-    });
-  }
 }
 
 function stopListeningUI(){
   listening = false;
   document.getElementById('micBtn').classList.remove('rec');
   document.getElementById('micRingWrap').classList.remove('rec');
-  document.getElementById('micStatus').textContent = 'Gusa kuanza — mfumo utakuuliza maswali';
-  document.getElementById('micSubstatus').textContent = 'Mfumo utauliza jina, kisha kila somo — moja baada ya jingine';
+  document.getElementById('micStatus').textContent = 'Gusa kuanza kuongea';
+  document.getElementById('micSubstatus').textContent = 'Taja jina, kisha alama moja baada ya nyingine, kisha sema "endelea"';
 }
 
 function escapeHtml(str){
@@ -1119,7 +1033,8 @@ function closeModalAndRedo(){
   liveMatchedId = null;
   refreshDetectedBanner(null);
   showToast('Sawa, jaribu tena.');
-  if (!guidedActive && !listening) startGuidedFlow();
+  const Ctor = getRecognitionCtor();
+  if (Ctor && !listening) startListening(Ctor);
 }
 
 function confirmAndNext(){
@@ -1143,7 +1058,8 @@ function confirmAndNext(){
     goToDoneScreen();
   } else {
     showToast('✓ Imehifadhiwa: ' + student.name);
-    if (!guidedActive && !listening) startGuidedFlow();
+    const Ctor = getRecognitionCtor();
+    if (Ctor && !listening) startListening(Ctor);
   }
 }
 
